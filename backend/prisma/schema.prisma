@@ -1,0 +1,914 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             String            @id @default(uuid())
+  email          String            @unique
+  passwordHash   String
+  name           String
+  roleId         String
+  role           Role              @relation(fields: [roleId], references: [id])
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  status         String            @default("ACTIVE") // ACTIVE, SUSPENDED
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  documents      CompanyDocument[]
+  auditLogs      AuditLog[]
+  notifications  Notification[]
+  apiKeys        ApiKey[]
+  reviewActions  ReviewAction[]
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique // ADMIN, REVIEWER, CLIENT
+  description String?
+  users       User[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Organization {
+  id             String          @id @default(uuid())
+  name           String
+  billingEmail   String
+  status         String          @default("ACTIVE")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  users          User[]
+  projects       Project[]
+  subscriptions  Subscription[]
+  apiKeys        ApiKey[]
+  companies      Company[]
+  financialYears FinancialYear[]
+}
+
+model Company {
+  id                           String            @id @default(uuid())
+  organizationId               String
+  organization                 Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cin                          String            @unique
+  name                         String
+  legalName                    String?
+  tradeName                    String?
+  pan                          String?
+  gstin                        String?
+  companyType                  String?
+  listingStatus                String?
+  industry                     String?
+  registeredOffice             String?
+  state                        String?
+  country                      String?
+  incorporationDate            DateTime?
+  email                        String?
+  phone                        String?
+  website                      String?
+  reportingStandard            String?
+  defaultScheduleIiiDivision   String?
+  status                       String            @default("ACTIVE")
+  createdAt                    DateTime          @default(now())
+  updatedAt                    DateTime          @updatedAt
+  profiles                     CompanyProfile[]
+  years                        FinancialYear[]
+  documents                    CompanyDocument[]
+  projects                     Project[]
+  reconciliations              ReconciliationRun[]
+  anomalies                    FilingAnomaly[]
+}
+
+model CompanyProfile {
+  id                String   @id @default(uuid())
+  companyId         String
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sector            String?
+  authorizedCapital Float?
+  paidUpCapital     Float?
+  activeStatus      String?
+  directorNames     String // Stored as JSON string
+  lastArDate        DateTime?
+  lastAgmDate       DateTime?
+  updatedAt         DateTime @updatedAt
+}
+
+model FinancialYear {
+  id                      String            @id @default(uuid())
+  companyId               String
+  company                 Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  organizationId          String
+  organization            Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  startDate               DateTime
+  endDate                 DateTime
+  label                   String            // e.g. "FY 2024-25"
+  reportingStandard       String            @default("IND_AS") // IND_AS, AS, UNKNOWN
+  scheduleIiiDivision     String            @default("DIVISION_II") // DIVISION_I, DIVISION_II, DIVISION_III, UNKNOWN
+  taxonomyVersion         String            @default("2024")
+  status                  String            @default("DRAFT")
+  previousFinancialYearId String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  projects                Project[]
+  documents               CompanyDocument[]
+
+  @@unique([companyId, label])
+}
+
+model Project {
+  id                  String               @id @default(uuid())
+  organizationId      String
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  companyId           String
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  financialYear       String
+  financialYearId     String?
+  financialYearRef    FinancialYear?       @relation(fields: [financialYearId], references: [id], onDelete: SetNull)
+  status              String               @default("IN_PROGRESS")
+  reportingStandard   String               @default("IND_AS")
+  scheduleIiiDivision String               @default("DIVISION_II")
+  taxonomyVersion     String               @default("2024")
+  filingPurpose       String               @default("AOC_4")
+  currentStage        String               @default("DOCUMENT_COLLECTION")
+  assignedPreparerId  String?
+  assignedReviewerId  String?
+  createdById         String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  documents           CompanyDocument[]
+  financialStatements FinancialStatement[]
+  parsedFacts         ParsedFact[]
+  validationErrors    ValidationError[]
+  reviewActions       ReviewAction[]
+  reviewVersions      ReviewVersion[]
+  xmlExports          XmlExport[]
+  pdfExports          PdfExport[]
+  reviewDecisions     ReviewDecision[]
+  documentRequests    DocumentRequest[]
+  outputArtifacts     OutputArtifact[]
+  ledgerAccounts      LedgerAccount[]
+  statementLineItems  StatementLineItem[]
+  financialNotes      FinancialNote[]
+  factConflicts       FactConflict[]
+  datasetVersions     FinancialDatasetVersion[]
+  validationRuns      ValidationRun[]
+  pipelineRuns        PipelineStageRun[]
+  xbrlInstances       XbrlInstance[]
+  generatedArtifacts  GeneratedArtifact[]
+}
+
+model CompanyDocument {
+  id                       String            @id @default(uuid())
+  projectId                String
+  project                  Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  companyId                String
+  company                  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  financialYear            String
+  financialYearId          String?
+  financialYearRef         FinancialYear?    @relation(fields: [financialYearId], references: [id], onDelete: SetNull)
+  name                     String
+  originalFilename         String?
+  storedFilename           String?
+  storageKey               String?
+  fileType                 String
+  fileUrl                  String
+  fileSize                 Int
+  checksumSha256           String?
+  uploadStatus             String            @default("COMPLETED")
+  processingStatus         String            @default("PENDING")
+  periodScope              String            @default("CURRENT") // CURRENT, PREVIOUS, HISTORICAL, UNKNOWN
+  documentClass            String            @default("UNKNOWN")
+  classificationConfidence Float             @default(1.0)
+  sourceArchiveId          String?
+  folderPath               String?
+  parentDocumentId         String?
+  version                  Int               @default(1)
+  isDuplicate              Boolean           @default(false)
+  duplicateOfDocumentId    String?
+  metadataJson             String?           // JSON string
+  status                   String            @default("PENDING") // PENDING, PROCESSING, PROCESSED, FAILED
+  uploadedById             String
+  uploadedBy               User              @relation(fields: [uploadedById], references: [id])
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+  versions                 DocumentVersion[]
+  validationErrors         ValidationError[]
+  reviewActions            ReviewAction[]
+  evidences                Evidence[]
+}
+
+model DocumentVersion {
+  id                String          @id @default(uuid())
+  companyDocumentId String
+  document          CompanyDocument @relation(fields: [companyDocumentId], references: [id], onDelete: Cascade)
+  versionNumber     Int
+  fileUrl           String
+  fileSize          Int
+  createdById       String
+  createdAt         DateTime        @default(now())
+}
+
+model ProcessingJob {
+  id             String    @id @default(uuid())
+  jobId          String    @unique
+  organizationId String
+  projectId      String
+  documentId     String?
+  type           String    // UPLOAD_FINALIZE, ARCHIVE_EXTRACT, etc.
+  status         String    // QUEUED, RUNNING, WAITING, SUCCEEDED, FAILED, CANCELLED
+  progress       Int       @default(0)
+  attempt        Int       @default(1)
+  maxAttempts    Int       @default(3)
+  errorCode      String?
+  errorMessage   String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  metadataJson   String?   // JSON string
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model FinancialStatement {
+  id          String       @id @default(uuid())
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type        String
+  status      String       @default("DRAFT")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  parsedFacts ParsedFact[]
+}
+
+model ParsedFact {
+  id                        String             @id @default(uuid())
+  projectId                 String
+  project                   Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  financialStatementId      String
+  statement                 FinancialStatement @relation(fields: [financialStatementId], references: [id], onDelete: Cascade)
+  factKey                   String
+  factValue                 String
+  unit                      String?
+  period                    String?
+  precision                 String?
+  contextRef                String?
+  xmlTag                    String?
+  confidence                Float
+  isOverridden              Boolean            @default(false)
+  overriddenValue           String?
+  updatedAt                 DateTime           @updatedAt
+  section                   String?
+  subsection                String?
+  businessLabel             String?
+  normalizedLabel           String?
+  internalConcept           String?
+  valueRaw                  String?
+  valueNormalized           String?
+  dataType                  String?
+  currency                  String?
+  scale                     String?
+  sign                      String?
+  periodType                String?
+  periodStart               DateTime?
+  periodEnd                 DateTime?
+  instantDate               DateTime?
+  comparativePeriod         String?
+  standaloneOrConsolidated  String?            @default("STANDALONE")
+  noteReference             String?
+  scheduleReference         String?
+  sourceDocumentId          String?
+  sourcePage                Int?
+  sourceSheet               String?
+  sourceCell                String?
+  sourceRow                 Int?
+  sourceColumn              Int?
+  sourceSnippet             String?
+  boundingBox               String?
+  ocrConfidence             Float?
+  extractionConfidence      Float?
+  accountingConfidence      Float?
+  evidenceConfidence        Float?
+  reconciliationConfidence  Float?
+  overallConfidence         Float?
+  status                    String?            @default("EXTRACTED")
+  originType                String?            @default("EXTRACTED")
+  version                   Int?               @default(1)
+  createdByAgent            String?
+  reviewedBy                String?
+  mappings                  TaxonomyMapping[]
+  evidences                 Evidence[]
+}
+
+model Evidence {
+  id                 String          @id @default(uuid())
+  factId             String
+  fact               ParsedFact      @relation(fields: [factId], references: [id], onDelete: Cascade)
+  documentId         String
+  document           CompanyDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  pageNumber         Int?
+  sheetName          String?
+  cellReference      String?
+  paragraphReference String?
+  tableReference     String?
+  rowReference       String?
+  columnReference    String?
+  sourceSnippet      String?
+  boundingBoxJson    String?
+  evidenceType       String
+  confidence         Float
+  createdAt          DateTime        @default(now())
+}
+
+model TaxonomyMapping {
+  id           String     @id @default(uuid())
+  parsedFactId String
+  fact         ParsedFact @relation(fields: [parsedFactId], references: [id], onDelete: Cascade)
+  elementId    String
+  elementName  String
+  taxonomyType String
+  confidence   Float
+  mappedById   String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model ValidationError {
+  id         String          @id @default(uuid())
+  projectId  String
+  project    Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documentId String?
+  document   CompanyDocument? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  errorCode  String
+  message    String
+  severity   String          @default("ERROR")
+  isCleared  Boolean         @default(false)
+  clearedById String?
+  createdAt  DateTime        @default(now())
+}
+
+model ReviewAction {
+  id         String           @id @default(uuid())
+  projectId  String
+  project    Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documentId String?
+  document   CompanyDocument? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  actionType String
+  fieldName  String?
+  oldValue   String?
+  newValue   String?
+  comment    String?
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime         @default(now())
+}
+
+model ReviewDecision {
+  id              String   @id @default(uuid())
+  organizationId  String
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  companyId       String
+  financialYearId String
+  entityType      String   // e.g. "ParsedFact", "CompanyDocument"
+  entityId        String
+  decisionType    String   // APPROVE, REJECT, OVERRIDE, COMMENT, REQUEST_INFO
+  oldValueJson    String?
+  newValueJson    String?
+  reason          String?
+  reviewerId      String
+  createdAt       DateTime @default(now())
+}
+
+model ReviewItem {
+  id             String    @id @default(uuid())
+  projectId      String
+  priority       String    // LOW, MEDIUM, HIGH, CRITICAL
+  status         String    // OPEN, IN_REVIEW, RESOLVED, DISMISSED
+  assignedTo     String?
+  sourceEntity   String    // e.g., "CompanyDocument", "ParsedFact"
+  entityId       String
+  suggestionJson String?
+  confidence     Float
+  reason         String?
+  createdAt      DateTime  @default(now())
+  resolvedAt     DateTime?
+}
+
+model DocumentRequest {
+  id                    String    @id @default(uuid())
+  projectId             String
+  project               Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  companyId             String
+  requestedDocumentType String
+  message               String?
+  status                String    @default("REQUESTED") // REQUESTED, UPLOADED, NOT_AVAILABLE, NOT_APPLICABLE, CANCELLED
+  requestedBy           String
+  assignedClient        String?
+  dueDate               DateTime?
+  createdAt             DateTime  @default(now())
+  completedAt           DateTime?
+}
+
+model ReviewVersion {
+  id            String   @id @default(uuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  stateData     String   // SQLite doesn't support native Json, store as string
+  createdById   String
+  createdAt     DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email      String
+  action     String
+  targetId   String?
+  targetType String?
+  details    String?  // SQLite doesn't support native Json, store as string
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+}
+
+model XmlExport {
+  id            String   @id @default(uuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fileUrl       String
+  fileSize      Int
+  generatedById String
+  createdAt     DateTime @default(now())
+}
+
+model PdfExport {
+  id            String   @id @default(uuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fileUrl       String
+  fileSize      Int
+  generatedById String
+  createdAt     DateTime @default(now())
+}
+
+model CompanyMemory {
+  id            String   @id @default(uuid())
+  companyCin    String
+  category      String
+  keyName       String
+  dataValue     String   // SQLite doesn't support native Json, store as string
+  financialYear String?
+  reviewerId    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companyCin, category])
+}
+
+model KnowledgeGraph {
+  id           String   @id @default(uuid())
+  nodeType     String
+  label        String
+  properties   String   // SQLite doesn't support native Json, store as string
+  sourceId     String?
+  targetId     String?
+  relationType String?
+  createdAt    DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Subscription {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan           String       @default("BASIC")
+  status         String       @default("ACTIVE")
+  startDate      DateTime     @default(now())
+  endDate        DateTime
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model ApiKey {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  keyPrefix      String
+  keyHash        String       @unique
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status         String       @default("ACTIVE")
+  createdAt      DateTime     @default(now())
+  expiresAt      DateTime?
+}
+
+model AiConversation {
+  id             String      @id @default(uuid())
+  organizationId String
+  userId         String
+  projectId      String?
+  companyId      String?
+  title          String
+  createdAt      DateTime    @default(now())
+  messages       AiMessage[]
+}
+
+model AiMessage {
+  id             String         @id @default(uuid())
+  conversationId String
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String         // USER, AI
+  content        String
+  toolCallsJson  String?
+  sourcesJson    String?
+  confidence     Float?
+  createdAt      DateTime       @default(now())
+}
+
+model AutomationRule {
+  id           String          @id @default(uuid())
+  name         String
+  trigger      String
+  action       String
+  isEnabled    Boolean         @default(true)
+  configJson   String?
+  createdAt    DateTime        @default(now())
+  runs         AutomationRun[]
+}
+
+model AutomationRun {
+  id          String         @id @default(uuid())
+  ruleId      String
+  rule        AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  status      String         // RUNNING, SUCCEEDED, FAILED
+  startedAt   DateTime       @default(now())
+  completedAt DateTime?
+  logJson     String?
+}
+
+model OutputArtifact {
+  id               String    @id @default(uuid())
+  projectId        String
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type             String    // XBRL_XML, HUMAN_READABLE_PDF, VALIDATION_REPORT, AUDIT_REPORT, REVIEW_SUMMARY, FILING_PACKAGE_ZIP
+  storageKey       String
+  version          Int       @default(1)
+  status           String    // GENERATING, SUCCEEDED, FAILED
+  generatedBy      String
+  generatedAt      DateTime  @default(now())
+  checksum         String?
+  validationStatus String?
+  approvedBy       String?
+  approvedAt       DateTime?
+}
+
+model LedgerAccount {
+  id              String   @id @default(uuid())
+  companyId       String
+  financialYearId String
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  accountCode     String
+  accountName     String
+  parentAccount   String?
+  accountGroup    String?
+  openingDebit    Float    @default(0)
+  openingCredit   Float    @default(0)
+  periodDebit     Float    @default(0)
+  periodCredit    Float    @default(0)
+  closingDebit    Float    @default(0)
+  closingCredit   Float    @default(0)
+  netBalance      Float    @default(0)
+  currency        String?
+  sourceDocument  String?
+  sourceSheet     String?
+  sourceRow       Int?
+  confidence      Float    @default(1.0)
+  createdAt       DateTime @default(now())
+}
+
+model StatementLineItem {
+  id                  String   @id @default(uuid())
+  projectId           String
+  project             Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  statementType       String
+  hierarchyLevel      Int      @default(0)
+  parentLineItemId    String?
+  displayOrder        Int      @default(0)
+  businessLabel       String
+  noteNumber          String?
+  currentPeriodValue  Float?
+  comparativeValue    Float?
+  internalConcept     String?
+  isTotal             Boolean  @default(false)
+  isSubtotal          Boolean  @default(false)
+  isHeader            Boolean  @default(false)
+  source              String?
+}
+
+model FinancialNote {
+  id                   String   @id @default(uuid())
+  projectId            String
+  project              Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  noteNumber           String
+  title                String?
+  section              String?
+  document             String?
+  pageStart            Int?
+  pageEnd              Int?
+  financialConcepts    String?
+  tables               String?
+  linkedStatementItems String?
+  confidence           Float    @default(1.0)
+}
+
+model FactObservation {
+  id               String   @id @default(uuid())
+  canonicalFactId  String?
+  internalConcept  String?
+  businessLabel    String?
+  value            String?
+  period           String?
+  source           String?
+  evidence         String?
+  confidence       Float    @default(1.0)
+  priority         String?
+  status           String?
+}
+
+model FactConflict {
+  id                   String   @id @default(uuid())
+  projectId            String
+  project              Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  concept              String
+  period               String
+  observationIds       String
+  conflictType         String
+  difference           String
+  materialityIndicator Boolean  @default(false)
+  status               String
+  recommendedAction    String?
+  reviewerDecision     String?
+}
+
+model FinancialDatasetVersion {
+  id                   String    @id @default(uuid())
+  projectId            String
+  project              Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versionNumber        Int
+  status               String
+  createdAt            DateTime  @default(now())
+  createdBy            String
+  approvedAt           DateTime?
+  approvedBy           String?
+  factSnapshotHash     String?
+  sourceDocumentHashes String?
+  exceptionsCount      Int       @default(0)
+  confidenceSummary    String?
+}
+
+model TaxonomyRelease {
+  id        String            @id @default(uuid())
+  version   String            @unique // e.g. "MCA_IND_AS_2024"
+  status    String            @default("ACTIVE") // ACTIVE, DEPRECATED
+  createdAt DateTime          @default(now())
+  concepts  TaxonomyConcept[]
+}
+
+model TaxonomyConcept {
+  id                String                 @id @default(uuid())
+  releaseId         String
+  release           TaxonomyRelease        @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  qname             String                 @unique // e.g. "in-ca:RevenueFromOperations"
+  localName         String
+  dataType          String
+  periodType        String                 // instant, duration
+  isAbstract        Boolean                @default(false)
+  isDeprecated      Boolean                @default(false)
+  labels            TaxonomyLabel[]
+  references        TaxonomyReference[]
+  sourceRelations   TaxonomyRelationship[] @relation("SourceConcept")
+  targetRelations   TaxonomyRelationship[] @relation("TargetConcept")
+}
+
+model TaxonomyLabel {
+  id        String          @id @default(uuid())
+  conceptId String
+  concept   TaxonomyConcept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  lang      String          @default("en")
+  labelRole String          @default("standard")
+  value     String
+}
+
+model TaxonomyReference {
+  id        String          @id @default(uuid())
+  conceptId String
+  concept   TaxonomyConcept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  reference String
+}
+
+model TaxonomyRelationship {
+  id              String          @id @default(uuid())
+  relationshipType String          // PRESENTATION, CALCULATION, DIMENSION
+  sourceConceptId String
+  sourceConcept   TaxonomyConcept @relation("SourceConcept", fields: [sourceConceptId], references: [id], onDelete: Cascade)
+  targetConceptId String
+  targetConcept   TaxonomyConcept @relation("TargetConcept", fields: [targetConceptId], references: [id], onDelete: Cascade)
+}
+
+model TaxonomyDataset {
+  id                   String                 @id @default(uuid())
+  projectId            String
+  versionNumber        Int
+  status               String                 // DRAFT, APPROVED, SUPERSEDED
+  createdBy            String
+  approvedAt           DateTime?
+  approvedBy           String?
+  mappingSnapshotHash  String?
+  exceptionsCount      Int                    @default(0)
+  createdAt            DateTime               @default(now())
+}
+
+model RuleSet {
+  id        String   @id @default(uuid())
+  version   String   @unique
+  status    String   @default("ACTIVE")
+  rules     Rule[]
+}
+
+model Rule {
+  id            String    @id @default(uuid())
+  ruleSetId     String
+  ruleSet       RuleSet   @relation(fields: [ruleSetId], references: [id], onDelete: Cascade)
+  ruleCode      String    @unique
+  title         String
+  description   String
+  category      String
+  severity      String    // INFO, LOW, MEDIUM, HIGH, CRITICAL
+  blocking      Boolean   @default(false)
+  effectiveFrom DateTime?
+  effectiveTo   DateTime?
+}
+
+model ValidationRun {
+  id                         String             @id @default(uuid())
+  projectId                  String
+  project                    Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  financialDatasetVersionId  String?
+  taxonomyDatasetVersionId   String?
+  status                     String             // PENDING, RUNNING, SUCCEEDED, FAILED
+  summaryHash                String?
+  criticalCount              Int                @default(0)
+  highCount                  Int                @default(0)
+  warningCount               Int                @default(0)
+  passCount                  Int                @default(0)
+  triggeredBy                String
+  createdAt                  DateTime           @default(now())
+  results                    ValidationResult[]
+}
+
+model ValidationResult {
+  id              String        @id @default(uuid())
+  validationRunId String
+  validationRun   ValidationRun @relation(fields: [validationRunId], references: [id], onDelete: Cascade)
+  ruleCode        String
+  severity        String
+  status          String        // PASS, FAIL, WARNING, REVIEW_REQUIRED
+  title           String
+  description     String
+  expectedValue   String?
+  actualValue     String?
+  difference      String?
+  affectedFactIds String?
+  createdAt       DateTime      @default(now())
+}
+
+model PipelineStageRun {
+  id              String   @id @default(uuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stageName       String   // Ingestion, Parsing, Extraction, Mapping, Validation, XbrlGeneration, PdfGeneration, PackageBuilding
+  status          String   // NOT_STARTED, RUNNING, COMPLETED, FAILED
+  progressCurrent Int      @default(0)
+  progressTotal   Int      @default(0)
+  updatedAt       DateTime @updatedAt
+}
+
+model XbrlInstance {
+  id                         String             @id @default(uuid())
+  projectId                  String
+  project                    Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versionNumber              Int
+  status                     String             // DRAFT, FINAL
+  filename                   String
+  storagePath                String
+  sha256                     String
+  validationStatus           String             // PASS, WARNING, FAIL
+  createdAt                  DateTime           @default(now())
+  createdBy                  String
+  facts                      XbrlFact[]
+}
+
+model XbrlFact {
+  id              String        @id @default(uuid())
+  xbrlInstanceId  String
+  xbrlInstance    XbrlInstance  @relation(fields: [xbrlInstanceId], references: [id], onDelete: Cascade)
+  qname           String
+  value           String
+  periodType      String
+  contextRef      String
+  unitRef         String
+  decimals        String
+}
+
+model GeneratedArtifact {
+  id            String    @id @default(uuid())
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type          String    // XML, PDF, ZIP
+  versionNumber Int
+  filename      String
+  storagePath   String
+  sha256        String
+  createdAt     DateTime  @default(now())
+}
+
+model MemoryConflict {
+  id              String         @id @default(uuid())
+  companyCin      String
+  category        String
+  keyName         String
+  detectedValue   String
+  storedValue     String
+  evidenceSource  String
+  status          String         // UNRESOLVED, RESOLVED
+  createdAt       DateTime       @default(now())
+}
+
+model ReconciliationRun {
+  id             String                 @id @default(uuid())
+  organizationId String
+  companyId      String
+  company        Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId      String
+  status         String                 // PASS, FAIL, WARNING
+  difference     String
+  createdAt      DateTime               @default(now())
+  items          ReconciliationItem[]
+}
+
+model ReconciliationItem {
+  id                  String             @id @default(uuid())
+  reconciliationRunId String
+  reconciliationRun   ReconciliationRun  @relation(fields: [reconciliationRunId], references: [id], onDelete: Cascade)
+  itemName            String
+  expectedValue       String
+  actualValue         String
+  status              String             // PASS, FAIL
+}
+
+model FilingAnomaly {
+  id             String         @id @default(uuid())
+  organizationId String
+  companyId      String
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId      String
+  factKey        String
+  severity       String         // LOW, HIGH
+  description    String
+  createdAt      DateTime       @default(now())
+}
+
+
+
+
+

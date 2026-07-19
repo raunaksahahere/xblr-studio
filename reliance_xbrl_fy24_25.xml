@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:mca-indas="http://www.mca.gov.in/2015/taxonomy/ind-AS" xmlns:iso4217="http://www.xbrl.org/2003/iso4217">
+  <link:schemaRef xlink:type="simple" xlink:href="http://www.mca.gov.in/2015/taxonomy/ind-AS/mca-ind-AS-2015.xsd"/>
+  <xbrli:context id="I2025">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.mca.gov.in/CIN">U56290DL2021PLC381173</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:instant>2025-03-31</xbrli:instant>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="D2025">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.mca.gov.in/CIN">U56290DL2021PLC381173</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-04-01</xbrli:startDate>
+      <xbrli:endDate>2025-03-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:unit id="INR">
+    <xbrli:measure>iso4217:INR</xbrli:measure>
+  </xbrli:unit>
+  <mca-indas:PaidUpValueOfShareCapital unitRef="INR" decimals="2" contextRef="I2025">72200000.00</mca-indas:PaidUpValueOfShareCapital>
+  <mca-indas:GrossReceiptsOfCompany unitRef="INR" decimals="2" contextRef="D2025">424290053.42</mca-indas:GrossReceiptsOfCompany>
+  <mca-indas:NameOfCompany contextRef="I2025">Golden Bio Energy Limited</mca-indas:NameOfCompany>
+  <mca-indas:CorporateIdentityNumber contextRef="I2025">U56290DL2021PLC381173</mca-indas:CorporateIdentityNumber>
+</xbrli:xbrl>

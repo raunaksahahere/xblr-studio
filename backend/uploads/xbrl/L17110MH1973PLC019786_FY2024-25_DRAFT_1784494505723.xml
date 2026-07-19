@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DRAFT — NOT READY FOR MCA SUBMISSION -->
+<xbrli:xbrl
+  xmlns:mca-ind-as="http://www.mca.gov.in/t/ind-as/2024"
+  xmlns:xbrli="http://www.xbrl.org/2003/instance"
+  xmlns:link="http://www.xbrl.org/2003/linkbase"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+>
+  <link:schemaRef xlink:type="simple" xlink:href="http://www.mca.gov.in/t/ind-as/2024/mca-ind-as-2024.xsd" />
+  <xbrli:context id="ctx_instant_20242025">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.mca.gov.in/cin">L17110MH1973PLC019786</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:instant>2024-2025</xbrli:instant>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="ctx_duration_20230401_20240331">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.mca.gov.in/cin">L17110MH1973PLC019786</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2023-04-01</xbrli:startDate>
+      <xbrli:endDate>2024-03-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:unit id="unit_inr">
+    <xbrli:measure>iso4217:INR</xbrli:measure>
+  </xbrli:unit>
+  <xbrli:unit id="unit_shares">
+    <xbrli:measure>shares</xbrli:measure>
+  </xbrli:unit>
+  <mca-ind-as:Assets contextRef="ctx_instant_20242025" unitRef="unit_inr" decimals="-5">1000000000000</mca-ind-as:Assets>
+  <mca-ind-as:Equity contextRef="ctx_instant_20242025" unitRef="unit_inr" decimals="-5">600000000000</mca-ind-as:Equity>
+  <mca-ind-as:Liabilities contextRef="ctx_instant_20242025" unitRef="unit_inr" decimals="-5">450000000000</mca-ind-as:Liabilities>
+  <mca-ind-as:RevenueFromOperations contextRef="ctx_duration_20230401_20240331" unitRef="unit_inr" decimals="-5">1500000000000</mca-ind-as:RevenueFromOperations>
+  <mca-ind-as:ProfitForThePeriod contextRef="ctx_duration_20230401_20240331" unitRef="unit_inr" decimals="-5">250000000000</mca-ind-as:ProfitForThePeriod>
+  <mca-ind-as:Assets contextRef="ctx_instant_20242025" unitRef="unit_inr" decimals="-5">10000000</mca-ind-as:Assets>
+  <mca-ind-as:Equity contextRef="ctx_instant_20242025" unitRef="unit_inr" decimals="-5">10000000</mca-ind-as:Equity>
+  <mca-ind-as:Liabilities contextRef="ctx_instant_20242025" unitRef="unit_inr" decimals="-5">10000000</mca-ind-as:Liabilities>
+  <mca-ind-as:RevenueFromOperations contextRef="ctx_instant_20242025" unitRef="unit_inr" decimals="-5">10000000</mca-ind-as:RevenueFromOperations>
+  <mca-ind-as:Assets contextRef="ctx_instant_20242025" unitRef="unit_inr" decimals="-5">1000000000000</mca-ind-as:Assets>
+  <mca-ind-as:Equity contextRef="ctx_instant_20242025" unitRef="unit_inr" decimals="-5">600000000000</mca-ind-as:Equity>
+  <mca-ind-as:Liabilities contextRef="ctx_instant_20242025" unitRef="unit_inr" decimals="-5">450000000000</mca-ind-as:Liabilities>
+  <mca-ind-as:RevenueFromOperations contextRef="ctx_duration_20230401_20240331" unitRef="unit_inr" decimals="-5">1500000000000</mca-ind-as:RevenueFromOperations>
+  <mca-ind-as:ProfitForThePeriod contextRef="ctx_duration_20230401_20240331" unitRef="unit_inr" decimals="-5">250000000000</mca-ind-as:ProfitForThePeriod>
+  <mca-ind-as:Assets contextRef="ctx_instant_20242025" unitRef="unit_inr" decimals="-5">1000000000000</mca-ind-as:Assets>
+  <mca-ind-as:Equity contextRef="ctx_instant_20242025" unitRef="unit_inr" decimals="-5">600000000000</mca-ind-as:Equity>
+  <mca-ind-as:Liabilities contextRef="ctx_instant_20242025" unitRef="unit_inr" decimals="-5">450000000000</mca-ind-as:Liabilities>
+  <mca-ind-as:RevenueFromOperations contextRef="ctx_duration_20230401_20240331" unitRef="unit_inr" decimals="-5">1500000000000</mca-ind-as:RevenueFromOperations>
+  <mca-ind-as:ProfitForThePeriod contextRef="ctx_duration_20230401_20240331" unitRef="unit_inr" decimals="-5">250000000000</mca-ind-as:ProfitForThePeriod>
+</xbrli:xbrl>

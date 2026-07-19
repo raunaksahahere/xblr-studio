@@ -1,0 +1,19 @@
+{
+  "companyName": "Reliance Industries Limited",
+  "cin": "L17110MH1973PLC019786",
+  "financialYear": "2024-2025",
+  "generatedAt": "2026-07-19T20:55:06.499Z",
+  "generatedBy": "admin@xbrlstudio.com",
+  "components": [
+    {
+      "type": "XBRL_XML",
+      "filename": "L17110MH1973PLC019786_FY2024-25_DRAFT_1784494505723.xml",
+      "sha256": "4d3c0788853fdbcf33eac1d729e3600bc1e32209acdb93f8eb747d78fc63fcbb"
+    },
+    {
+      "type": "HUMAN_PDF",
+      "filename": "L17110MH1973PLC019786_FY2024-25_DRAFT_1784494506225.pdf",
+      "sha256": "ad729931b88667157ec4ced2aac48b6a1b72129c9bc08f26ac947032b7080d12"
+    }
+  ]
+}
