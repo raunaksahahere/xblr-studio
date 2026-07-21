@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed": "ts-node src/seed.ts"
+    "seed": "ts-node src/seed.ts",
+    "train:ai": "ts-node src/scripts/trainAiModel.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.2",

@@ -2,6 +2,7 @@ import prisma from '../config/db';
 import { runReconciliation } from './reconciliationService';
 import { getMappingPrecedent } from './reviewerLearningService';
 import { FINANCIAL_INTELLIGENCE_SYSTEM_PROMPT } from '../config/financialPrompt';
+import { getActiveTrainingContext } from './aiTrainingService';
 
 export interface CopilotResponse {
   conclusion: string;
@@ -19,7 +20,8 @@ export const chatWithCopilot = async (
   mode: string
 ): Promise<CopilotResponse> => {
   // Bind master intelligence prompts context
-  const activePrompt = FINANCIAL_INTELLIGENCE_SYSTEM_PROMPT;
+  const trainingContext = await getActiveTrainingContext();
+  const activePrompt = `${FINANCIAL_INTELLIGENCE_SYSTEM_PROMPT}\n\n# ACTIVE TRAINING CORPUS\n${trainingContext}`;
   console.log(`[CopilotService] Active system prompt injected. Rules length: ${activePrompt.length}`);
 
   const project = await prisma.project.findUnique({

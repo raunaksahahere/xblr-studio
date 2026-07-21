@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { extractDocumentContent } from './extractor';
 import { ACCOUNTING_ONTOLOGY_DICTIONARY, SCENARIO_TRAINING_LIBRARY } from '../config/financialPrompt';
+import { getActiveTrainingContext } from './aiTrainingService';
 
 export interface FinancialFactData {
   name: string;
@@ -34,7 +35,10 @@ export const ACCOUNTING_ONTOLOGY: Record<string, string> = {
 // Run the core document processing intelligence
 export const runFinancialIntelligencePipeline = async (projectId: string, documentId: string) => {
   console.log(`[FinancialIntelligence] Starting pipeline for project: ${projectId}, doc: ${documentId}`);
-  console.log(`[FinancialIntelligence] Ingesting prompt parameters. Active ontology terms: ${Object.keys(ACCOUNTING_ONTOLOGY_DICTIONARY).length}. Scenarios registered: ${SCENARIO_TRAINING_LIBRARY.length}`);
+  const trainingContext = await getActiveTrainingContext();
+  console.log(
+    `[FinancialIntelligence] Ingesting prompt parameters. Active ontology terms: ${Object.keys(ACCOUNTING_ONTOLOGY_DICTIONARY).length}. Scenarios registered: ${SCENARIO_TRAINING_LIBRARY.length}. Training corpus chars: ${trainingContext.length}`
+  );
 
   const document = await prisma.companyDocument.findUnique({
     where: { id: documentId },

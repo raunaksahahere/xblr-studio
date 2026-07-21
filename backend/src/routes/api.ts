@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
 import { tenantAccessControl } from '../middleware/tenant';
-import { registerUser, loginUser, refreshToken, getMe } from '../controllers/authController';
+import { registerUser, loginUser, googleLogin, refreshToken, getMe } from '../controllers/authController';
 import { createCompany, getCompanies, getCompanyByCin, getCompanyHistory } from '../controllers/companyController';
 import { createProject, getProjects, getProjectById, updateProjectStatus } from '../controllers/projectController';
 import { uploadDocument, getDocumentsByProject, downloadDocument, upload } from '../controllers/documentController';
@@ -67,6 +67,7 @@ const router = Router();
 // Public Authentication
 router.post('/auth/register', registerUser);
 router.post('/auth/login', loginUser);
+router.post('/auth/google', googleLogin);
 router.post('/auth/refresh', refreshToken);
 
 // Authenticated Routes
@@ -211,5 +212,12 @@ router.get('/graph/path', handleTraceFactLineage as any);
 router.post('/projects/:id/reconcile', handleRunReconciliation as any);
 router.get('/projects/:id/reconciliations-run', handleGetReconciliations as any);
 
-export default router;
+import {
+  handleGetAiTrainingStatus,
+  handleRunAiTraining,
+} from '../controllers/aiTrainingController';
 
+router.get('/admin/ai/training/status', authenticateToken, requirePermission('api:write') as any, handleGetAiTrainingStatus as any);
+router.post('/admin/ai/training/run', authenticateToken, requirePermission('api:write') as any, handleRunAiTraining as any);
+
+export default router;

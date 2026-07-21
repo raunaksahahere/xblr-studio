@@ -59,7 +59,7 @@ export const registerUser = async (req: Request, res: Response) => {
       },
     });
 
-    // Create Audit Log (Stringify details for SQLite)
+    // Create Audit Log
     await prisma.auditLog.create({
       data: {
         userId: user.id,
@@ -124,7 +124,7 @@ export const loginUser = async (req: Request, res: Response) => {
     const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
     const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: '7d' });
 
-    // Log Login action (Stringify details for SQLite)
+    // Log Login action
     await prisma.auditLog.create({
       data: {
         userId: user.id,
@@ -151,6 +151,99 @@ export const loginUser = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Login Error:', error);
     res.status(500).json({ error: 'Login failed' });
+  }
+};
+
+export const googleLogin = async (req: Request, res: Response) => {
+  const { email, name, googleId } = req.body;
+
+  try {
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required for Google authentication' });
+    }
+
+    let user = await prisma.user.findUnique({
+      where: { email },
+      include: { role: true, organization: true },
+    });
+
+    if (!user) {
+      // Auto-provision default organization for new Google OAuth user
+      const organization = await prisma.organization.create({
+        data: {
+          name: `${name || 'User'}'s Organization`,
+          billingEmail: email,
+          subscriptions: {
+            create: {
+              plan: 'ENTERPRISE',
+              endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+            },
+          },
+        },
+      });
+
+      let role = await prisma.role.findUnique({ where: { name: 'ADMIN' } });
+      if (!role) {
+        role = await prisma.role.create({
+          data: {
+            name: 'ADMIN',
+            description: 'Admin role',
+          },
+        });
+      }
+
+      const randomHash = await bcrypt.hash(`google-oauth-${Date.now()}`, 10);
+      user = await prisma.user.create({
+        data: {
+          email,
+          passwordHash: randomHash,
+          name: name || email.split('@')[0],
+          roleId: role.id,
+          organizationId: organization.id,
+        },
+        include: {
+          role: true,
+          organization: true,
+        },
+      });
+    }
+
+    const payload = {
+      id: user.id,
+      email: user.email,
+      role: user.role.name,
+      organizationId: user.organizationId,
+    };
+
+    const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+    const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: '7d' });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        email: user.email,
+        action: 'GOOGLE_OAUTH_LOGIN',
+        targetId: user.id,
+        targetType: 'User',
+        details: JSON.stringify({ ip: req.ip, googleId }),
+      },
+    });
+
+    res.json({
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role.name,
+        organizationId: user.organizationId,
+        organizationName: user.organization.name,
+      },
+    });
+  } catch (error) {
+    console.error('Google OAuth Error:', error);
+    res.status(500).json({ error: 'Google authentication failed' });
   }
 };
 
