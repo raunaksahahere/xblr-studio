@@ -17,6 +17,7 @@ build/
 *.db-journal
 uploads/*
 !uploads/.gitkeep
+backend/training-data/*.jsonl
 
 # System & Log files
 *.log

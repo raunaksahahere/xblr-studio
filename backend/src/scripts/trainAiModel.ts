@@ -20,6 +20,12 @@ async function main() {
   console.log(`  Ontology terms: ${result.ontologyTermCount}`);
   console.log(`  XBRL mappings learned: ${result.xbrlMappingsLearned}`);
   console.log(`  Knowledge graph exemplars: ${result.knowledgeGraphNodesCreated}`);
+  console.log(`  Gemini enabled: ${result.geminiTrainingEnabled}`);
+  console.log(`  Gemini model: ${result.geminiModel ?? 'n/a'}`);
+  console.log(`  Gemini playbook: ${result.geminiPlaybookGenerated ? 'yes' : 'no'}`);
+  if (result.geminiFinetuneJsonlPath) {
+    console.log(`  Vertex/Gemini SFT export: ${result.geminiFinetuneJsonlPath}`);
+  }
   console.log('\n=================================================');
   console.log('  TRAINING COMPLETE                              ');
   console.log('=================================================');

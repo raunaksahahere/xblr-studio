@@ -9,6 +9,11 @@ import {
   HOMONYMOUS_LABEL_CONTEXT_TRAINING_LIBRARY,
   SCENARIO_TRAINING_LIBRARY,
 } from '../config/financialPrompt';
+import {
+  getGeminiConfig,
+  isGeminiConfigured,
+  synthesizeTrainingPlaybookWithGemini,
+} from './geminiService';
 
 /** Organization-wide training memory key (not a real MCA CIN). */
 export const GLOBAL_TRAINING_CIN = '__GLOBAL_AI_TRAINING__';
@@ -26,6 +31,10 @@ export interface AiTrainingResult {
   xbrlMappingsLearned: number;
   knowledgeGraphNodesCreated: number;
   promptRegistryBytes: number;
+  geminiTrainingEnabled: boolean;
+  geminiModel: string | null;
+  geminiPlaybookGenerated: boolean;
+  geminiFinetuneJsonlPath: string | null;
 }
 
 export interface AiTrainingStatus {
@@ -35,6 +44,9 @@ export interface AiTrainingStatus {
   exemplarFileCount: number;
   globalMappingCount: number;
   promptVersionHash: string;
+  geminiConfigured: boolean;
+  geminiModel: string | null;
+  hasGeminiPlaybook: boolean;
 }
 
 const hashString = (input: string): string => {
@@ -136,7 +148,15 @@ export const getActiveTrainingContext = async (): Promise<string> => {
     ? `Homonymous label disambiguation examples:\n${homonymMem.dataValue}`
     : `Homonymous label disambiguation examples:\n${JSON.stringify(HOMONYMOUS_LABEL_CONTEXT_TRAINING_LIBRARY, null, 2)}`;
 
-  return `${scenarioBlock}\n\n${homonymBlock}`;
+  const playbookMem = await prisma.companyMemory.findFirst({
+    where: { companyCin: GLOBAL_TRAINING_CIN, category: 'TRAINING', keyName: 'gemini_playbook' },
+  });
+
+  const playbookBlock = playbookMem?.dataValue
+    ? `\n\nGemini-synthesized filing playbook:\n${playbookMem.dataValue}`
+    : '';
+
+  return `${scenarioBlock}\n\n${homonymBlock}${playbookBlock}`;
 };
 
 export const getAiTrainingStatus = async (): Promise<AiTrainingStatus> => {
@@ -160,6 +180,12 @@ export const getAiTrainingStatus = async (): Promise<AiTrainingStatus> => {
     where: { companyCin: GLOBAL_TRAINING_CIN, category: 'MAPPINGS' },
   });
 
+  const playbookMem = await prisma.companyMemory.findFirst({
+    where: { companyCin: GLOBAL_TRAINING_CIN, category: 'TRAINING', keyName: 'gemini_playbook' },
+  });
+
+  const { model, tunedModel } = getGeminiConfig();
+
   return {
     lastTrainedAt,
     scenarioCount: SCENARIO_TRAINING_LIBRARY.length,
@@ -167,7 +193,59 @@ export const getAiTrainingStatus = async (): Promise<AiTrainingStatus> => {
     exemplarFileCount,
     globalMappingCount,
     promptVersionHash: hashString(FINANCIAL_INTELLIGENCE_SYSTEM_PROMPT),
+    geminiConfigured: isGeminiConfigured(),
+    geminiModel: isGeminiConfigured() ? tunedModel || model : null,
+    hasGeminiPlaybook: Boolean(playbookMem?.dataValue),
   };
+};
+
+const buildGeminiFinetuneJsonl = async (): Promise<string | null> => {
+  const exemplars = await prisma.companyMemory.findMany({
+    where: { companyCin: GLOBAL_TRAINING_CIN, category: 'EXTRACTION_EXEMPLAR' },
+    take: 500,
+  });
+
+  if (exemplars.length === 0) return null;
+
+  const lines = exemplars.map((row) => {
+    let sample: { label?: string; lineContext?: string; sampleValue?: number } = {};
+    try {
+      sample = JSON.parse(row.dataValue);
+    } catch {
+      sample = { label: row.keyName };
+    }
+    return JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: `Extract the canonical financial fact for Indian MCA XBRL from this line:\n${sample.lineContext || sample.label}`,
+            },
+          ],
+        },
+        {
+          role: 'model',
+          parts: [
+            {
+              text: JSON.stringify({
+                factKey: sample.label,
+                value: sample.sampleValue,
+                evidence: sample.lineContext,
+                confidencePolicy: 'flag_if_below_90_percent',
+              }),
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  const outDir = path.resolve(__dirname, '../../training-data');
+  fs.mkdirSync(outDir, { recursive: true });
+  const outPath = path.join(outDir, 'gemini-supervised-tuning.jsonl');
+  fs.writeFileSync(outPath, lines.join('\n') + '\n', 'utf-8');
+  return outPath;
 };
 
 export const runAiModelTraining = async (): Promise<AiTrainingResult> => {
@@ -299,6 +377,57 @@ export const runAiModelTraining = async (): Promise<AiTrainingResult> => {
     }
   }
 
+  let geminiPlaybookGenerated = false;
+  let geminiFinetuneJsonlPath: string | null = null;
+  const { model, tunedModel } = getGeminiConfig();
+
+  geminiFinetuneJsonlPath = await buildGeminiFinetuneJsonl();
+
+  if (isGeminiConfigured()) {
+    try {
+      const exemplarMem = await prisma.companyMemory.findMany({
+        where: { companyCin: GLOBAL_TRAINING_CIN, category: 'EXTRACTION_EXEMPLAR' },
+        take: 80,
+      });
+      const corpus = [
+        FINANCIAL_INTELLIGENCE_SYSTEM_PROMPT,
+        SCENARIO_TRAINING_LIBRARY.map((s, i) => `${i + 1}. ${s}`).join('\n'),
+        JSON.stringify(HOMONYMOUS_LABEL_CONTEXT_TRAINING_LIBRARY),
+        JSON.stringify(exemplarMem.map((m) => m.dataValue)),
+      ].join('\n\n');
+
+      const synthesis = await synthesizeTrainingPlaybookWithGemini(corpus);
+      await createOrUpdateMemory(
+        GLOBAL_TRAINING_CIN,
+        'TRAINING',
+        'gemini_playbook',
+        synthesis.playbookMarkdown,
+        undefined,
+        'GEMINI_TRAIN'
+      );
+      await createOrUpdateMemory(
+        GLOBAL_TRAINING_CIN,
+        'TRAINING',
+        'gemini_playbook_meta',
+        JSON.stringify({
+          extractionRules: synthesis.extractionRules,
+          taxonomyHints: synthesis.taxonomyHints,
+          reviewTriggers: synthesis.reviewTriggers,
+          model: tunedModel || model,
+          trainedAt,
+        }),
+        undefined,
+        'GEMINI_TRAIN'
+      );
+      geminiPlaybookGenerated = true;
+      console.log('[AiTraining] Gemini playbook synthesis completed.');
+    } catch (err) {
+      console.error('[AiTraining] Gemini training pass failed:', err);
+    }
+  } else {
+    console.warn('[AiTraining] GEMINI_API_KEY not set — skipped Gemini playbook synthesis.');
+  }
+
   const result: AiTrainingResult = {
     trainedAt,
     dropFoldersScanned: dropFolders.filter((f) => fs.existsSync(f)),
@@ -310,6 +439,10 @@ export const runAiModelTraining = async (): Promise<AiTrainingResult> => {
     xbrlMappingsLearned,
     knowledgeGraphNodesCreated,
     promptRegistryBytes: FINANCIAL_INTELLIGENCE_SYSTEM_PROMPT.length,
+    geminiTrainingEnabled: isGeminiConfigured(),
+    geminiModel: isGeminiConfigured() ? tunedModel || model : null,
+    geminiPlaybookGenerated,
+    geminiFinetuneJsonlPath,
   };
 
   await createOrUpdateMemory(
